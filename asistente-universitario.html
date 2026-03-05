@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudyMind — Asistente Universitario</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&family=Bricolage+Grotesque:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/dayjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/plugin/relativeTime.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/locale/es.min.js"></script>
+
+<style>
+  /* ── CONFIG ── */
+  :root {
+    --ink: #0f0e0d;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --warm: #e8dfc8;
+    --accent: #c84b2f;
+    --accent2: #2f6ec8;
+    --accent3: #2ea86b;
+    --muted: #8a8070;
+    --border: rgba(15,14,13,0.12);
+    --shadow: 0 4px 24px rgba(15,14,13,0.08);
+    --shadow-lg: 0 12px 48px rgba(15,14,13,0.14);
+    --r: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── NOISE TEXTURE ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.6;
+  }
+
+  /* ── LAYOUT ── */
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 80px;
+  }
+
+  /* ── HEADER ── */
+  header {
+    padding: 40px 0 32px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    border-bottom: 1.5px solid var(--border);
+    margin-bottom: 40px;
+  }
+
+  .logo {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .logo-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.2rem;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .logo-name em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .logo-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .header-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-align: right;
+  }
+
+  /* ── CONFIG BANNER ── */
+  .config-banner {
+    background: #f0f7ff;
+    border: 1.5px solid #b8d4f5;
+    border-radius: var(--r);
+    padding: 16px 20px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+  }
+
+  .config-banner .icon { font-size: 1.2rem; }
+
+  .config-banner strong { font-weight: 600; }
+
+  .config-btn {
+    margin-left: auto;
+    background: var(--accent2);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .config-btn:hover { opacity: 0.75; }
+
+  /* ── MODAL CONFIG ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15,14,13,0.5);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--paper);
+    border-radius: 20px;
+    padding: 36px;
+    width: 90%;
+    max-width: 520px;
+    box-shadow: var(--shadow-lg);
+    transform: translateY(20px);
+    transition: transform 0.3s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal h2 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.6rem;
+    margin-bottom: 6px;
+  }
+
+  .modal p {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .field-group {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+
+  .field label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 6px;
+    color: var(--muted);
+  }
+
+  .field input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: var(--cream);
+    font-family: 'DM Mono', monospace;
+    font-size: 0.8rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .field input:focus { border-color: var(--accent2); }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 20px;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-secondary:hover { background: var(--cream); }
+
+  .btn-primary {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+  .btn-primary:hover { opacity: 0.75; }
+
+  /* ── GRID ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 28px;
+    align-items: start;
+  }
+
+  @media (max-width: 760px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: white;
+    border-radius: 18px;
+    padding: 28px;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+  }
+
+  .card-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.3rem;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── FORM ── */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  @media (max-width: 500px) {
+    .form-row { grid-template-columns: 1fr; }
+  }
+
+  .form-field label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .form-field input,
+  .form-field select,
+  .form-field textarea {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    background: var(--cream);
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.88rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    appearance: none;
+  }
+
+  .form-field input:focus,
+  .form-field select:focus,
+  .form-field textarea:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(47,110,200,0.1);
+  }
+
+  .form-field textarea {
+    resize: vertical;
+    min-height: 80px;
+    line-height: 1.5;
+  }
+
+  .form-full { grid-column: 1 / -1; }
+
+  .submit-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 6px;
+    transition: background 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .submit-btn:hover { background: #a83d22; }
+  .submit-btn:active { transform: scale(0.99); }
+  .submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* ── TYPE CHIPS ── */
+  .type-selector {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  .type-chip {
+    padding: 7px 14px;
+    border-radius: 999px;
+    border: 1.5px solid var(--border);
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--cream);
+    user-select: none;
+  }
+
+  .type-chip.active {
+    border-color: transparent;
+    color: white;
+  }
+
+  .type-chip[data-type="examen"].active { background: var(--accent); }
+  .type-chip[data-type="tp"].active { background: var(--accent2); }
+  .type-chip[data-type="coloquio"].active { background: #8e44ad; }
+  .type-chip[data-type="parcial"].active { background: #d4872a; }
+  .type-chip[data-type="final"].active { background: #1a7a4a; }
+  .type-chip[data-type="otro"].active { background: #555; }
+
+  /* ── EVENTS LIST ── */
+  .events-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    max-height: 620px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+
+  .events-list::-webkit-scrollbar { width: 4px; }
+  .events-list::-webkit-scrollbar-track { background: transparent; }
+  .events-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .event-item {
+    border-radius: 14px;
+    padding: 16px 18px;
+    border: 1.5px solid var(--border);
+    background: var(--cream);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .event-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    border-radius: 4px 0 0 4px;
+  }
+
+  .event-item[data-type="examen"]::before { background: var(--accent); }
+  .event-item[data-type="tp"]::before { background: var(--accent2); }
+  .event-item[data-type="coloquio"]::before { background: #8e44ad; }
+  .event-item[data-type="parcial"]::before { background: #d4872a; }
+  .event-item[data-type="final"]::before { background: #1a7a4a; }
+  .event-item[data-type="otro"]::before { background: #555; }
+
+  .event-item:hover { transform: translateY(-2px); box-shadow: var(--shadow); border-color: transparent; }
+
+  .event-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .event-subject {
+    font-weight: 600;
+    font-size: 0.95rem;
+    line-height: 1.3;
+  }
+
+  .event-badge {
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: white;
+    flex-shrink: 0;
+  }
+
+  .event-badge[data-type="examen"] { background: var(--accent); }
+  .event-badge[data-type="tp"] { background: var(--accent2); }
+  .event-badge[data-type="coloquio"] { background: #8e44ad; }
+  .event-badge[data-type="parcial"] { background: #d4872a; }
+  .event-badge[data-type="final"] { background: #1a7a4a; }
+  .event-badge[data-type="otro"] { background: #555; }
+
+  .event-meta {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+
+  .event-date {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+  }
+
+  .event-countdown {
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(200,75,47,0.1);
+    color: var(--accent);
+  }
+
+  .event-countdown.soon {
+    background: rgba(200,75,47,0.15);
+    color: var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  .event-countdown.ok { background: rgba(47,200,107,0.1); color: var(--accent3); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .event-notes {
+    margin-top: 8px;
+    font-size: 0.8rem;
+    color: #555;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .event-delete {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: rgba(200,75,47,0.08);
+    border: none;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    color: var(--accent);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .event-item:hover .event-delete { opacity: 1; }
+
+  /* ── CHAT ── */
+  .chat-section {
+    margin-top: 28px;
+  }
+
+  .chat-box {
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    background: var(--cream);
+    padding: 16px;
+    min-height: 180px;
+    max-height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .chat-box::-webkit-scrollbar { width: 4px; }
+  .chat-box::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .msg {
+    display: flex;
+    gap: 10px;
+    animation: fadeUp 0.3s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .msg.user { flex-direction: row-reverse; }
+
+  .msg-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .msg.ai .msg-avatar { background: var(--ink); color: var(--paper); }
+  .msg.user .msg-avatar { background: var(--accent); color: white; }
+
+  .msg-bubble {
+    max-width: 80%;
+    padding: 10px 14px;
+    border-radius: 14px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+
+  .msg.ai .msg-bubble {
+    background: white;
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+
+  .msg.user .msg-bubble {
+    background: var(--ink);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+
+  .chat-input-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .chat-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: white;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.88rem;
+    outline: none;
+    transition: border-color 0.2s;
+    color: var(--ink);
+  }
+  .chat-input:focus { border-color: var(--accent2); }
+
+  .chat-send {
+    padding: 12px 18px;
+    background: var(--ink);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: opacity 0.2s;
+  }
+  .chat-send:hover { opacity: 0.75; }
+  .chat-send:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── STATS BAR ── */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: white;
+    border-radius: 14px;
+    padding: 18px 16px;
+    border: 1px solid var(--border);
+    text-align: center;
+  }
+
+  .stat-number {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2rem;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 4px;
+  }
+
+  @media (max-width: 600px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+  }
+
+  /* ── REMINDER ALERTS ── */
+  .alerts-section {
+    margin-bottom: 28px;
+  }
+
+  .alert-item {
+    padding: 14px 18px;
+    border-radius: 12px;
+    border: 1.5px solid;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.85rem;
+    margin-bottom: 10px;
+    animation: fadeUp 0.4s ease;
+  }
+
+  .alert-urgent {
+    background: #fff5f3;
+    border-color: #f8c5bc;
+    color: #a03020;
+  }
+
+  .alert-warning {
+    background: #fffbf0;
+    border-color: #f5de94;
+    color: #8a6010;
+  }
+
+  .alert-icon { font-size: 1.2rem; flex-shrink: 0; }
+  .alert-text strong { display: block; font-weight: 600; }
+  .alert-text span { opacity: 0.8; font-size: 0.78rem; }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state .empty-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+    display: block;
+  }
+
+  .empty-state p { font-size: 0.88rem; line-height: 1.5; }
+
+  /* ── LOADER ── */
+  .typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: 8px 4px;
+  }
+
+  .typing-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    animation: typing 1.2s infinite;
+  }
+
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes typing {
+    0%, 60%, 100% { opacity: 0.2; transform: scale(0.85); }
+    30% { opacity: 1; transform: scale(1); }
+  }
+
+  /* ── TOAST ── */
+  .toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .toast {
+    background: var(--ink);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    box-shadow: var(--shadow-lg);
+    animation: slideIn 0.3s ease;
+    max-width: 300px;
+  }
+
+  .toast.success { background: #1a7a4a; }
+  .toast.error { background: var(--accent); }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+</style>
+</head>
+<body>
+
+<!-- CONFIG MODAL -->
+<div class="modal-overlay" id="configModal">
+  <div class="modal">
+    <h2>🔑 API Key de OpenAI</h2>
+    <p>Pegá tu API Key de OpenAI para activar el asistente IA. Se guarda solo en tu navegador, nunca sale de tu dispositivo.</p>
+    <div class="field-group">
+      <div class="field">
+        <label>OpenAI API Key</label>
+        <input type="password" id="cfg-openai-key" placeholder="sk-..." />
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeConfig()">Cancelar</button>
+      <button class="btn-primary" onclick="saveConfig()">Activar asistente</button>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo">
+      <span class="logo-name">Study<em>Mind</em></span>
+      <span class="logo-sub">Asistente Universitario</span>
+    </div>
+    <div class="header-date" id="headerDate"></div>
+  </header>
+
+  <div class="config-banner" id="configBanner">
+    <span class="icon">🔑</span>
+    <div><strong>Activá el asistente IA</strong> — pegá tu API Key de OpenAI para empezar.</div>
+    <button class="config-btn" onclick="openConfig()">Agregar key</button>
+  </div>
+
+  <!-- ALERTS -->
+  <div class="alerts-section" id="alertsSection" style="display:none"></div>
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stat-card">
+      <div class="stat-number" id="statTotal">0</div>
+      <div class="stat-label">Eventos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="statProximos" style="color:var(--accent)">0</div>
+      <div class="stat-label">Esta semana</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="statUrgentes" style="color:#d4872a">0</div>
+      <div class="stat-label">Urgentes</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="statMaterias" style="color:var(--accent2)">0</div>
+      <div class="stat-label">Materias</div>
+    </div>
+  </div>
+
+  <!-- MAIN GRID -->
+  <div class="grid">
+
+    <!-- LEFT: Form + Chat -->
+    <div>
+      <!-- ADD EVENT CARD -->
+      <div class="card" style="margin-bottom:24px">
+        <div class="card-title">📌 Agregar evento</div>
+
+        <!-- Type selector -->
+        <div style="margin-bottom:14px">
+          <div style="font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin-bottom:8px">Tipo de evento</div>
+          <div class="type-selector">
+            <div class="type-chip active" data-type="examen" onclick="selectType('examen')">📝 Examen</div>
+            <div class="type-chip" data-type="tp" onclick="selectType('tp')">📄 TP</div>
+            <div class="type-chip" data-type="coloquio" onclick="selectType('coloquio')">💬 Coloquio</div>
+            <div class="type-chip" data-type="parcial" onclick="selectType('parcial')">📚 Parcial</div>
+            <div class="type-chip" data-type="final" onclick="selectType('final')">🎯 Final</div>
+            <div class="type-chip" data-type="otro" onclick="selectType('otro')">📎 Otro</div>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field">
+            <label>Materia</label>
+            <input type="text" id="inp-subject" placeholder="ej: Análisis Matemático" />
+          </div>
+          <div class="form-field">
+            <label>Fecha del evento</label>
+            <input type="date" id="inp-date" />
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-field form-full">
+            <label>Notas / Temas (opcional)</label>
+            <textarea id="inp-notes" placeholder="ej: Unidades 3 a 6, incluye derivadas e integrales..."></textarea>
+          </div>
+        </div>
+
+        <button class="submit-btn" id="submitBtn" onclick="addEvent()">
+          <span>➕</span> Agregar evento
+        </button>
+      </div>
+
+      <!-- CHAT CARD -->
+      <div class="card chat-section">
+        <div class="card-title">🤖 Asistente IA</div>
+        <div class="chat-box" id="chatBox">
+          <div class="msg ai">
+            <div class="msg-avatar">🎓</div>
+            <div class="msg-bubble">¡Hola! Soy tu asistente universitario. Puedo ayudarte a organizar tu estudio, darte consejos para preparar exámenes, crear un plan de estudio o recordarte qué tenés que hacer. ¿En qué te ayudo?</div>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input type="text" class="chat-input" id="chatInput" placeholder="Preguntale algo a tu asistente..." onkeydown="if(event.key==='Enter') sendChat()" />
+          <button class="chat-send" id="chatSendBtn" onclick="sendChat()">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Events list -->
+    <div class="card">
+      <div class="card-title">📅 Próximos eventos</div>
+      <div class="events-list" id="eventsList">
+        <div class="empty-state">
+          <span class="empty-icon">🗓️</span>
+          <p>Todavía no tenés eventos.<br>¡Agregá tu primer examen o TP!</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- TOASTS -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  CONFIG & CREDENTIALS
+// ─────────────────────────────────────────────────────────────
+let CONFIG = {
+  openaiKey: localStorage.getItem('sm_openai_key') || '',
+};
+
+function openConfig() {
+  document.getElementById('cfg-openai-key').value = CONFIG.openaiKey;
+  document.getElementById('configModal').classList.add('open');
+}
+
+function closeConfig() {
+  document.getElementById('configModal').classList.remove('open');
+}
+
+function saveConfig() {
+  CONFIG.openaiKey = document.getElementById('cfg-openai-key').value.trim();
+  localStorage.setItem('sm_openai_key', CONFIG.openaiKey);
+  closeConfig();
+  updateConfigBanner();
+  showToast('✅ API Key guardada — ¡asistente activado!', 'success');
+}
+
+function updateConfigBanner() {
+  document.getElementById('configBanner').style.display = CONFIG.openaiKey ? 'none' : 'flex';
+}
+
+// ─────────────────────────────────────────────────────────────
+//  DATE HEADER
+// ─────────────────────────────────────────────────────────────
+const DIAS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+
+function formatDateHeader() {
+  const now = new Date();
+  return `${DIAS[now.getDay()]}, ${now.getDate()} de ${MESES[now.getMonth()]} ${now.getFullYear()}`;
+}
+
+document.getElementById('headerDate').innerHTML = formatDateHeader();
+
+// Set default date to today + 7 days
+const defDate = new Date();
+defDate.setDate(defDate.getDate() + 7);
+document.getElementById('inp-date').value = defDate.toISOString().split('T')[0];
+
+// ─────────────────────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────────────────────
+let events = [];
+let selectedType = 'examen';
+
+function selectType(type) {
+  selectedType = type;
+  document.querySelectorAll('.type-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.type === type);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+//  STORAGE — localStorage only
+// ─────────────────────────────────────────────────────────────
+function loadEvents() {
+  try {
+    const stored = localStorage.getItem('sm_events_local');
+    events = stored ? JSON.parse(stored) : [];
+  } catch(_) { events = []; }
+  renderAll();
+}
+
+function persistEvents() {
+  localStorage.setItem('sm_events_local', JSON.stringify(events));
+}
+
+// ─────────────────────────────────────────────────────────────
+//  ADD / DELETE EVENTS
+// ─────────────────────────────────────────────────────────────
+async function addEvent() {
+  const subject = document.getElementById('inp-subject').value.trim();
+  const date    = document.getElementById('inp-date').value;
+  const notes   = document.getElementById('inp-notes').value.trim();
+
+  if (!subject) { showToast('⚠️ Ingresá la materia', 'error'); return; }
+  if (!date)    { showToast('⚠️ Elegí una fecha', 'error'); return; }
+
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span style="opacity:.5">Guardando...</span>';
+
+  const ev = {
+    id: Date.now().toString(),
+    type: selectedType,
+    subject,
+    date,
+    notes,
+  };
+
+  events.push(ev);
+  events.sort((a, b) => a.date.localeCompare(b.date));
+  persistEvents();
+
+  document.getElementById('inp-subject').value = '';
+  document.getElementById('inp-notes').value = '';
+
+  renderAll();
+  showToast('✅ Evento guardado', 'success');
+
+  // Auto AI tip
+  if (CONFIG.openaiKey) {
+    const daysUntil = Math.ceil((new Date(date) - new Date()) / 86400000);
+    appendMsg('ai', null, true);
+    const msg = await askAI(
+      `El usuario acaba de agregar un ${selectedType} de "${subject}" en ${daysUntil} días (fecha: ${date}). ` +
+      `${notes ? `Notas: ${notes}.` : ''} Dame un consejo breve y motivador sobre cómo prepararse, y recordale que le avisaré 7 días antes.`
+    );
+    replaceTyping(msg);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>➕</span> Agregar evento';
+}
+
+async function deleteEvent(id, e) {
+  e.stopPropagation();
+  events = events.filter(ev => ev.id != id);
+  persistEvents();
+  renderAll();
+  showToast('🗑️ Evento eliminado');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  OPENAI CHAT
+// ─────────────────────────────────────────────────────────────
+let chatHistory = [
+  { role: 'system', content: 
+    'Sos un asistente universitario argentino, amigable y directo. ' +
+    'Ayudás a los estudiantes a organizarse, preparar exámenes, TPs, coloquios, etc. ' +
+    'Hablás en español argentino, sos conciso y práctico. Máximo 3 párrafos por respuesta.' 
+  }
+];
+
+async function askAI(userMsg) {
+  if (!CONFIG.openaiKey) {
+    return 'Configurá tu API Key de OpenAI para usar el asistente IA. ⚙️';
+  }
+
+  // Add context of current events
+  const evContext = events.length
+    ? `\n\nEventos actuales del usuario: ${events.map(e => `${e.type} de ${e.subject} el ${e.date}`).join(', ')}.`
+    : '';
+
+  chatHistory.push({ role: 'user', content: userMsg + evContext });
+
+  try {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${CONFIG.openaiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: chatHistory.slice(-12), // keep last 12 messages
+        max_tokens: 400,
+        temperature: 0.75,
+      })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error(data.error.message);
+    const reply = data.choices[0].message.content;
+    chatHistory.push({ role: 'assistant', content: reply });
+    return reply;
+  } catch(e) {
+    return `Error al conectar con OpenAI: ${e.message}`;
+  }
+}
+
+async function sendChat() {
+  const input = document.getElementById('chatInput');
+  const msg = input.value.trim();
+  if (!msg) return;
+
+  input.value = '';
+  document.getElementById('chatSendBtn').disabled = true;
+
+  appendMsg('user', msg);
+  appendMsg('ai', null, true); // typing indicator
+
+  const reply = await askAI(msg);
+  replaceTyping(reply);
+
+  document.getElementById('chatSendBtn').disabled = false;
+  input.focus();
+}
+
+function appendMsg(role, text, typing = false) {
+  const box = document.getElementById('chatBox');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.id = typing ? 'typing-msg' : '';
+
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  avatar.textContent = role === 'ai' ? '🎓' : '👤';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+
+  if (typing) {
+    bubble.innerHTML = `<div class="typing-indicator"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  } else {
+    bubble.textContent = text;
+  }
+
+  div.append(avatar, bubble);
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+
+function replaceTyping(text) {
+  const el = document.getElementById('typing-msg');
+  if (el) {
+    el.querySelector('.msg-bubble').textContent = text;
+    el.removeAttribute('id');
+  } else {
+    appendMsg('ai', text);
+  }
+  document.getElementById('chatBox').scrollTop = 99999;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  RENDER
+// ─────────────────────────────────────────────────────────────
+function getDaysUntil(dateStr) {
+  const now = new Date(); now.setHours(0,0,0,0);
+  const d   = new Date(dateStr + 'T00:00:00');
+  return Math.ceil((d - now) / 86400000);
+}
+
+function renderAll() {
+  renderEvents();
+  renderStats();
+  renderAlerts();
+}
+
+function renderEvents() {
+  const list = document.getElementById('eventsList');
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcoming = events.filter(e => new Date(e.date + 'T00:00:00') >= today);
+
+  if (!upcoming.length) {
+    list.innerHTML = `<div class="empty-state"><span class="empty-icon">🗓️</span><p>Todavía no tenés eventos.<br>¡Agregá tu primer examen o TP!</p></div>`;
+    return;
+  }
+
+  list.innerHTML = upcoming.map(ev => {
+    const days = getDaysUntil(ev.date);
+    const countdownClass = days <= 3 ? 'soon' : days <= 7 ? '' : 'ok';
+    const countdownText = days === 0 ? '¡HOY!' : days === 1 ? 'mañana' : `en ${days}d`;
+    const dateFormatted = new Date(ev.date + 'T00:00:00').toLocaleDateString('es-AR', { day:'numeric', month:'short' });
+
+    return `
+    <div class="event-item" data-type="${ev.type}">
+      <button class="event-delete" onclick="deleteEvent('${ev.id}', event)">✕ borrar</button>
+      <div class="event-header">
+        <div class="event-subject">${ev.subject}</div>
+        <span class="event-badge" data-type="${ev.type}">${ev.type}</span>
+      </div>
+      <div class="event-meta">
+        <span class="event-date">📅 ${dateFormatted}</span>
+        <span class="event-countdown ${countdownClass}">${countdownText}</span>
+      </div>
+      ${ev.notes ? `<div class="event-notes">📎 ${ev.notes}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function renderStats() {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const upcoming = events.filter(e => new Date(e.date + 'T00:00:00') >= today);
+  const thisWeek = upcoming.filter(e => getDaysUntil(e.date) <= 7);
+  const urgent   = upcoming.filter(e => getDaysUntil(e.date) <= 3);
+  const materias = [...new Set(upcoming.map(e => e.subject))];
+
+  document.getElementById('statTotal').textContent    = upcoming.length;
+  document.getElementById('statProximos').textContent = thisWeek.length;
+  document.getElementById('statUrgentes').textContent = urgent.length;
+  document.getElementById('statMaterias').textContent = materias.length;
+}
+
+function renderAlerts() {
+  const section = document.getElementById('alertsSection');
+
+  // Only show events that are EXACTLY 7 days away (±0) or between 0–7
+  const alerts = events
+    .filter(e => {
+      const d = getDaysUntil(e.date);
+      return d >= 0 && d === 7; // Exact 7-day reminder
+    });
+
+  // Also show urgent (0-2 days) as bonus alerts
+  const urgent = events.filter(e => {
+    const d = getDaysUntil(e.date);
+    return d >= 0 && d <= 2;
+  });
+
+  const all = [...urgent, ...alerts].sort((a, b) => getDaysUntil(a.date) - getDaysUntil(b.date));
+
+  if (!all.length) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  section.innerHTML = `
+    <div style="font-family:'DM Mono',monospace;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-bottom:10px">
+      🔔 Recordatorios activos
+    </div>` +
+    all.map(ev => {
+      const days = getDaysUntil(ev.date);
+      const isUrgent = days <= 2;
+      const icon = days === 0 ? '🚨' : days <= 2 ? '⚠️' : '🔔';
+      const text = days === 0 ? `¡Es HOY! Mucho éxito con` :
+                   days === 1 ? `¡Es mañana! Preparate para` :
+                   days === 7 ? `⏰ Recordatorio — faltan 7 días para` :
+                   `Faltan ${days} días para`;
+      return `
+      <div class="alert-item ${isUrgent ? 'alert-urgent' : 'alert-warning'}">
+        <span class="alert-icon">${icon}</span>
+        <div class="alert-text">
+          <strong>${text} ${ev.type} de ${ev.subject}</strong>
+          <span>${new Date(ev.date + 'T00:00:00').toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'})}</span>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  TOAST
+// ─────────────────────────────────────────────────────────────
+function showToast(msg, type = '') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}
+
+// ─────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────
+updateConfigBanner();
+loadEvents();
+setInterval(renderAlerts, 60000); // re-check reminders every minute
+</script>
+
+<!-- README -->
+<!--
+╔══════════════════════════════════════════════════════════════╗
+║  INSTRUCCIONES DE CONFIGURACIÓN                              ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  1. SUPABASE — Creá esta tabla en tu proyecto:               ║
+║                                                              ║
+║  CREATE TABLE university_events (                            ║
+║    id          BIGSERIAL PRIMARY KEY,                        ║
+║    type        TEXT NOT NULL,                                ║
+║    subject     TEXT NOT NULL,                                ║
+║    event_date  DATE NOT NULL,                                ║
+║    notes       TEXT,                                         ║
+║    created_at  TIMESTAMPTZ DEFAULT NOW()                     ║
+║  );                                                          ║
+║                                                              ║
+║  -- Habilitá Row Level Security y acceso público:            ║
+║  ALTER TABLE university_events ENABLE ROW LEVEL SECURITY;    ║
+║  CREATE POLICY "public access" ON university_events          ║
+║    FOR ALL USING (true) WITH CHECK (true);                   ║
+║                                                              ║
+║  2. Hacé clic en ⚙️ Configurar y pegá:                       ║
+║     - Supabase URL (https://xxx.supabase.co)                 ║
+║     - Supabase Anon Key                                      ║
+║     - OpenAI API Key (sk-...)                                ║
+║                                                              ║
+╚══════════════════════════════════════════════════════════════╝
+-->
+
+</body>
+</html>
