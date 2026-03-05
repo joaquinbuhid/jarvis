@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<link rel="icon" type="image/x-icon" href="favicon.ico">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>StudyMind — Asistente Universitario</title>
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&family=Bricolage+Grotesque:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/dayjs.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/plugin/relativeTime.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/locale/es.min.js"></script>
@@ -892,6 +892,16 @@
 // ─────────────────────────────────────────────────────────────
 //  CONFIG & CREDENTIALS
 // ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+//  SUPABASE CONFIG — hardcoded (anon key es segura)
+// ─────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://eephcpcxyjmmohubgbtr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlcGhjcGN4eWptbW9odWJnYnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTUxODYsImV4cCI6MjA4ODI5MTE4Nn0.qvUvi4axXgUECbyUuZRnX7C_76_3U9NFAvXS1EvM7lA';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ─────────────────────────────────────────────────────────────
+//  CONFIG — solo OpenAI key (ingresada por el usuario)
+// ─────────────────────────────────────────────────────────────
 let CONFIG = {
   openaiKey: localStorage.getItem('sm_openai_key') || '',
 };
@@ -949,18 +959,43 @@ function selectType(type) {
 }
 
 // ─────────────────────────────────────────────────────────────
-//  STORAGE — localStorage only
+//  STORAGE — Supabase (sincronizado entre dispositivos)
 // ─────────────────────────────────────────────────────────────
-function loadEvents() {
+async function loadEvents() {
   try {
-    const stored = localStorage.getItem('sm_events_local');
-    events = stored ? JSON.parse(stored) : [];
-  } catch(_) { events = []; }
+    const { data, error } = await db
+      .from('university_events')
+      .select('*')
+      .order('event_date', { ascending: true });
+    if (error) throw error;
+    events = data.map(r => ({
+      id: r.id,
+      type: r.type,
+      subject: r.subject,
+      date: r.event_date,
+      notes: r.notes || '',
+    }));
+  } catch(e) {
+    console.error('Error cargando eventos:', e);
+    // fallback a localStorage
+    try { events = JSON.parse(localStorage.getItem('sm_events_local') || '[]'); } catch(_) { events = []; }
+  }
   renderAll();
 }
 
-function persistEvents() {
-  localStorage.setItem('sm_events_local', JSON.stringify(events));
+async function saveEventToDB(ev) {
+  const { data, error } = await db
+    .from('university_events')
+    .insert({ type: ev.type, subject: ev.subject, event_date: ev.date, notes: ev.notes })
+    .select()
+    .single();
+  if (error) throw error;
+  return data.id;
+}
+
+async function deleteEventFromDB(id) {
+  const { error } = await db.from('university_events').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -978,25 +1013,25 @@ async function addEvent() {
   btn.disabled = true;
   btn.innerHTML = '<span style="opacity:.5">Guardando...</span>';
 
-  const ev = {
-    id: Date.now().toString(),
-    type: selectedType,
-    subject,
-    date,
-    notes,
-  };
+  const ev = { id: Date.now().toString(), type: selectedType, subject, date, notes };
+
+  try {
+    const dbId = await saveEventToDB(ev);
+    ev.id = dbId;
+    showToast('✅ Evento guardado y sincronizado ☁️', 'success');
+  } catch(e) {
+    console.error(e);
+    showToast('⚠️ Guardado solo localmente', 'error');
+    localStorage.setItem('sm_events_local', JSON.stringify([...events, ev]));
+  }
 
   events.push(ev);
   events.sort((a, b) => a.date.localeCompare(b.date));
-  persistEvents();
 
   document.getElementById('inp-subject').value = '';
   document.getElementById('inp-notes').value = '';
-
   renderAll();
-  showToast('✅ Evento guardado', 'success');
 
-  // Auto AI tip
   if (CONFIG.openaiKey) {
     const daysUntil = Math.ceil((new Date(date) - new Date()) / 86400000);
     appendMsg('ai', null, true);
@@ -1014,9 +1049,13 @@ async function addEvent() {
 async function deleteEvent(id, e) {
   e.stopPropagation();
   events = events.filter(ev => ev.id != id);
-  persistEvents();
+  try {
+    await deleteEventFromDB(id);
+    showToast('🗑️ Evento eliminado');
+  } catch(err) {
+    showToast('⚠️ Error al eliminar', 'error');
+  }
   renderAll();
-  showToast('🗑️ Evento eliminado');
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1243,8 +1282,10 @@ function showToast(msg, type = '') {
 //  INIT
 // ─────────────────────────────────────────────────────────────
 updateConfigBanner();
-loadEvents();
-setInterval(renderAlerts, 60000); // re-check reminders every minute
+loadEvents().then(() => {
+  showToast('☁️ Eventos sincronizados', 'success');
+});
+setInterval(renderAlerts, 60000);
 </script>
 
 <!-- README -->
