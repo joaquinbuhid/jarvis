@@ -479,7 +479,7 @@ async function doLogin() {
     // 1. Buscar por username
     const { data: user, error } = await db
       .from('usuarios')
-      .select('id_usuario, username, password')
+      .select('id_usuario, username, pass_word')
       .eq('username', username)
       .maybeSingle();
 
