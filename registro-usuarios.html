@@ -703,7 +703,7 @@ async function register() {
 
   try {
     // 1. Hash con bcrypt (rounds=10, seguro para producción)
-    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+    //const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
 
     // 2. Insert en Supabase
     const { data, error } = await db
