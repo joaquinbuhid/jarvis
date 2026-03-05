@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudyMind — Registro de Usuario</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@300;400;500&family=Bricolage+Grotesque:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- bcryptjs para hashear la password en el browser -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+  :root {
+    --ink: #0f0e0d;
+    --paper: #f5f0e8;
+    --cream: #ede8dc;
+    --accent: #c84b2f;
+    --accent2: #2f6ec8;
+    --accent3: #2ea86b;
+    --muted: #8a8070;
+    --border: rgba(15,14,13,0.12);
+    --shadow: 0 4px 24px rgba(15,14,13,0.08);
+    --shadow-lg: 0 20px 60px rgba(15,14,13,0.16);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Bricolage Grotesque', sans-serif;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Background decoration */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 50% at 20% 20%, rgba(47,110,200,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 60% at 80% 80%, rgba(200,75,47,0.06) 0%, transparent 60%),
+      url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .page-wrap {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 460px;
+  }
+
+  /* ── BRAND ── */
+  .brand {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .brand-name {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2.4rem;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+
+  .brand-name em {
+    font-style: italic;
+    color: var(--accent);
+  }
+
+  .brand-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  /* ── CARD ── */
+  .card {
+    background: white;
+    border-radius: 24px;
+    padding: 40px 36px;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+  }
+
+  .card-header {
+    margin-bottom: 32px;
+  }
+
+  .card-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.7rem;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 6px;
+  }
+
+  .card-desc {
+    font-size: 0.85rem;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+
+  /* ── FIELDS ── */
+  .fields {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    margin-bottom: 28px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .field label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+
+  .input-wrap {
+    position: relative;
+  }
+
+  .input-wrap .icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    pointer-events: none;
+    opacity: 0.5;
+  }
+
+  .input-wrap input {
+    width: 100%;
+    padding: 13px 14px 13px 42px;
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    background: var(--cream);
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 0.95rem;
+    color: var(--ink);
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  }
+
+  .input-wrap input:focus {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 3px rgba(47,110,200,0.1);
+    background: white;
+  }
+
+  .input-wrap input.error {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(200,75,47,0.1);
+  }
+
+  .input-wrap input.success {
+    border-color: var(--accent3);
+    box-shadow: 0 0 0 3px rgba(46,168,107,0.1);
+  }
+
+  /* toggle password */
+  .toggle-pw {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+    padding: 4px;
+  }
+  .toggle-pw:hover { opacity: 0.8; }
+
+  /* field hint */
+  .field-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-top: 2px;
+    min-height: 18px;
+    transition: color 0.2s;
+  }
+  .field-hint.err { color: var(--accent); }
+  .field-hint.ok  { color: var(--accent3); }
+
+  /* ── PASSWORD STRENGTH ── */
+  .strength-bar {
+    display: flex;
+    gap: 4px;
+    margin-top: 6px;
+  }
+
+  .strength-seg {
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--border);
+    transition: background 0.3s;
+  }
+
+  .strength-seg.weak   { background: var(--accent); }
+  .strength-seg.medium { background: #d4872a; }
+  .strength-seg.strong { background: var(--accent3); }
+
+  .strength-label {
+    font-size: 0.72rem;
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+    color: var(--muted);
+    transition: color 0.2s;
+  }
+
+  /* ── SUBMIT ── */
+  .submit-btn {
+    width: 100%;
+    padding: 15px;
+    background: var(--ink);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Bricolage Grotesque', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s, opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    letter-spacing: 0.01em;
+  }
+
+  .submit-btn:hover:not(:disabled) { background: #2a2824; }
+  .submit-btn:active:not(:disabled) { transform: scale(0.985); }
+  .submit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  /* ── RESULT ── */
+  .result-box {
+    margin-top: 20px;
+    border-radius: 12px;
+    padding: 16px 18px;
+    font-size: 0.85rem;
+    line-height: 1.5;
+    display: none;
+    animation: fadeUp 0.3s ease;
+  }
+
+  .result-box.success {
+    display: block;
+    background: #f0faf5;
+    border: 1.5px solid #a8dfc0;
+    color: #1a5c38;
+  }
+
+  .result-box.error {
+    display: block;
+    background: #fff5f3;
+    border: 1.5px solid #f5b8ae;
+    color: #8a2515;
+  }
+
+  .result-box strong { display: block; font-weight: 700; margin-bottom: 4px; }
+
+  .result-box .user-info {
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.6);
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.75rem;
+    word-break: break-all;
+  }
+
+  .result-box .user-info span {
+    display: block;
+    color: var(--muted);
+    margin-bottom: 2px;
+  }
+
+  .result-box .user-info b { color: var(--ink); }
+
+  /* ── DIVIDER ── */
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 24px 0;
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+  .divider::before,
+  .divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ── BACK LINK ── */
+  .back-link {
+    display: block;
+    text-align: center;
+    font-size: 0.83rem;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .back-link:hover { color: var(--ink); }
+
+  /* ── HASH PREVIEW ── */
+  .hash-preview {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: var(--cream);
+    border-radius: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    word-break: break-all;
+    line-height: 1.4;
+    display: none;
+  }
+
+  .hash-preview.visible { display: block; }
+
+  .hash-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+    display: block;
+    opacity: 0.7;
+  }
+
+  /* ── SPINNER ── */
+  .spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 480px) {
+    .card { padding: 28px 22px; border-radius: 20px; }
+    .brand-name { font-size: 2rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page-wrap">
+
+  <!-- BRAND -->
+  <div class="brand">
+    <div class="brand-name">Study<em>Mind</em></div>
+    <div class="brand-sub">Registro de usuario</div>
+  </div>
+
+  <!-- CARD -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Crear cuenta</div>
+      <div class="card-desc">Ingresá tu usuario y contraseña. La password se hashea con bcrypt antes de guardarse.</div>
+    </div>
+
+    <div class="fields">
+
+      <!-- USERNAME -->
+      <div class="field">
+        <label>Nombre de usuario</label>
+        <div class="input-wrap">
+          <span class="icon">👤</span>
+          <input
+            type="text"
+            id="username"
+            placeholder="ej: joaquin_123"
+            autocomplete="username"
+            oninput="validateUsername()"
+            onblur="checkUsernameAvailable()"
+          />
+        </div>
+        <div class="field-hint" id="username-hint">Mínimo 3 caracteres, sin espacios.</div>
+      </div>
+
+      <!-- PASSWORD -->
+      <div class="field">
+        <label>Contraseña</label>
+        <div class="input-wrap">
+          <span class="icon">🔒</span>
+          <input
+            type="password"
+            id="password"
+            placeholder="Mínimo 6 caracteres"
+            autocomplete="new-password"
+            oninput="validatePassword()"
+          />
+          <button class="toggle-pw" type="button" onclick="togglePw('password', this)" title="Mostrar/ocultar">👁️</button>
+        </div>
+        <div class="strength-bar">
+          <div class="strength-seg" id="seg1"></div>
+          <div class="strength-seg" id="seg2"></div>
+          <div class="strength-seg" id="seg3"></div>
+          <div class="strength-seg" id="seg4"></div>
+        </div>
+        <div class="strength-label" id="strength-label">—</div>
+        <div class="field-hint" id="password-hint"></div>
+      </div>
+
+      <!-- CONFIRM PASSWORD -->
+      <div class="field">
+        <label>Confirmar contraseña</label>
+        <div class="input-wrap">
+          <span class="icon">🔑</span>
+          <input
+            type="password"
+            id="password2"
+            placeholder="Repetí la contraseña"
+            autocomplete="new-password"
+            oninput="validateConfirm()"
+          />
+          <button class="toggle-pw" type="button" onclick="togglePw('password2', this)" title="Mostrar/ocultar">👁️</button>
+        </div>
+        <div class="field-hint" id="confirm-hint"></div>
+      </div>
+
+    </div>
+
+    <!-- HASH PREVIEW (opcional, para debug) -->
+    <div class="hash-preview" id="hashPreview">
+      <span class="hash-label">bcrypt hash (se guarda esto, nunca la password real)</span>
+      <span id="hashText">—</span>
+    </div>
+
+    <!-- SUBMIT -->
+    <button class="submit-btn" id="submitBtn" onclick="register()" disabled>
+      <span id="btnText">✦ Crear cuenta</span>
+    </button>
+
+    <!-- RESULT -->
+    <div class="result-box" id="resultBox"></div>
+
+    <div class="divider">o</div>
+    <a href="index.html" class="back-link">← Volver al asistente</a>
+  </div>
+
+</div>
+
+<script>
+// ── SUPABASE ──
+const SUPABASE_URL = 'https://eephcpcxyjmmohubgbtr.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVlcGhjcGN4eWptbW9odWJnYnRyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI3MTUxODYsImV4cCI6MjA4ODI5MTE4Nn0.qvUvi4axXgUECbyUuZRnX7C_76_3U9NFAvXS1EvM7lA';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── STATE ──
+const BCRYPT_ROUNDS = 10; // costo del hash (10 = recomendado)
+let usernameOk  = false;
+let passwordOk  = false;
+let confirmOk   = false;
+let checkingUser = false;
+
+// ── TOGGLE PASSWORD VISIBILITY ──
+function togglePw(inputId, btn) {
+  const inp = document.getElementById(inputId);
+  if (inp.type === 'password') {
+    inp.type = 'text';
+    btn.textContent = '🙈';
+  } else {
+    inp.type = 'password';
+    btn.textContent = '👁️';
+  }
+}
+
+// ── USERNAME VALIDATION ──
+function validateUsername() {
+  const val  = document.getElementById('username').value.trim();
+  const inp  = document.getElementById('username');
+  const hint = document.getElementById('username-hint');
+
+  inp.classList.remove('error', 'success');
+  usernameOk = false;
+
+  if (val.length === 0) {
+    hint.textContent = 'Mínimo 3 caracteres, sin espacios.';
+    hint.className = 'field-hint';
+  } else if (val.length < 3) {
+    hint.textContent = '⚠ Muy corto, mínimo 3 caracteres.';
+    hint.className = 'field-hint err';
+    inp.classList.add('error');
+  } else if (/\s/.test(val)) {
+    hint.textContent = '⚠ No puede tener espacios.';
+    hint.className = 'field-hint err';
+    inp.classList.add('error');
+  } else if (!/^[a-zA-Z0-9_.\-]+$/.test(val)) {
+    hint.textContent = '⚠ Solo letras, números, _ . -';
+    hint.className = 'field-hint err';
+    inp.classList.add('error');
+  } else {
+    hint.textContent = '✓ Formato válido';
+    hint.className = 'field-hint ok';
+    inp.classList.add('success');
+    usernameOk = true;
+  }
+  updateBtn();
+}
+
+// Check username availability in Supabase
+let checkTimeout;
+async function checkUsernameAvailable() {
+  const val  = document.getElementById('username').value.trim();
+  const hint = document.getElementById('username-hint');
+  const inp  = document.getElementById('username');
+
+  if (!usernameOk) return;
+  if (checkingUser) return;
+
+  hint.textContent = '⏳ Verificando disponibilidad...';
+  hint.className = 'field-hint';
+  checkingUser = true;
+
+  try {
+    const { data, error } = await db
+      .from('usuarios')
+      .select('id_usuario')
+      .eq('username', val)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (data) {
+      hint.textContent = '✗ Ese usuario ya está en uso.';
+      hint.className = 'field-hint err';
+      inp.classList.remove('success');
+      inp.classList.add('error');
+      usernameOk = false;
+    } else {
+      hint.textContent = '✓ Disponible 🎉';
+      hint.className = 'field-hint ok';
+      inp.classList.remove('error');
+      inp.classList.add('success');
+      usernameOk = true;
+    }
+  } catch(e) {
+    hint.textContent = '⚠ No se pudo verificar disponibilidad.';
+    hint.className = 'field-hint err';
+  }
+
+  checkingUser = false;
+  updateBtn();
+}
+
+// ── PASSWORD STRENGTH ──
+function getStrength(pw) {
+  let score = 0;
+  if (pw.length >= 6)  score++;
+  if (pw.length >= 10) score++;
+  if (/[A-Z]/.test(pw) && /[a-z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  return Math.min(4, score);
+}
+
+function validatePassword() {
+  const pw    = document.getElementById('password').value;
+  const inp   = document.getElementById('password');
+  const hint  = document.getElementById('password-hint');
+  const label = document.getElementById('strength-label');
+  const segs  = [1,2,3,4].map(i => document.getElementById('seg'+i));
+
+  inp.classList.remove('error','success');
+  passwordOk = false;
+
+  segs.forEach(s => { s.className = 'strength-seg'; });
+
+  if (pw.length === 0) {
+    label.textContent = '—';
+    label.style.color = 'var(--muted)';
+    hint.textContent = '';
+    hint.className = 'field-hint';
+    updateBtn();
+    return;
+  }
+
+  const strength = getStrength(pw);
+  const levels   = ['', 'weak', 'weak', 'medium', 'strong'];
+  const labels   = ['', 'Débil 😬', 'Débil 😬', 'Media 👍', 'Fuerte 💪'];
+  const colors   = ['', 'var(--accent)', 'var(--accent)', '#d4872a', 'var(--accent3)'];
+
+  for (let i = 0; i < strength; i++) {
+    segs[i].className = `strength-seg ${levels[strength]}`;
+  }
+
+  label.textContent = labels[strength];
+  label.style.color = colors[strength];
+
+  if (pw.length < 6) {
+    hint.textContent = '⚠ Mínimo 6 caracteres.';
+    hint.className = 'field-hint err';
+    inp.classList.add('error');
+  } else {
+    hint.textContent = '';
+    hint.className = 'field-hint';
+    inp.classList.add('success');
+    passwordOk = true;
+  }
+
+  // Update hash preview live
+  updateHashPreview(pw);
+  validateConfirm();
+  updateBtn();
+}
+
+let hashTimeout;
+function updateHashPreview(pw) {
+  if (!pw) {
+    document.getElementById('hashPreview').classList.remove('visible');
+    return;
+  }
+  clearTimeout(hashTimeout);
+  hashTimeout = setTimeout(async () => {
+    const hash = await bcrypt.hash(pw, 6); // rounds bajos solo para preview visual
+    document.getElementById('hashText').textContent = hash;
+    document.getElementById('hashPreview').classList.add('visible');
+  }, 600);
+}
+
+// ── CONFIRM PASSWORD ──
+function validateConfirm() {
+  const pw   = document.getElementById('password').value;
+  const pw2  = document.getElementById('password2').value;
+  const inp  = document.getElementById('password2');
+  const hint = document.getElementById('confirm-hint');
+
+  inp.classList.remove('error','success');
+  confirmOk = false;
+
+  if (pw2.length === 0) {
+    hint.textContent = '';
+    hint.className = 'field-hint';
+  } else if (pw !== pw2) {
+    hint.textContent = '⚠ Las contraseñas no coinciden.';
+    hint.className = 'field-hint err';
+    inp.classList.add('error');
+  } else {
+    hint.textContent = '✓ Coinciden.';
+    hint.className = 'field-hint ok';
+    inp.classList.add('success');
+    confirmOk = true;
+  }
+  updateBtn();
+}
+
+// ── ENABLE/DISABLE BUTTON ──
+function updateBtn() {
+  document.getElementById('submitBtn').disabled = !(usernameOk && passwordOk && confirmOk);
+}
+
+// ── REGISTER ──
+async function register() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const btn      = document.getElementById('submitBtn');
+  const result   = document.getElementById('resultBox');
+
+  btn.disabled = true;
+  btn.innerHTML = `<div class="spinner"></div><span>Creando cuenta...</span>`;
+  result.className = 'result-box';
+  result.style.display = 'none';
+
+  try {
+    // 1. Hash con bcrypt (rounds=10, seguro para producción)
+    const hashedPassword = await bcrypt.hash(password, BCRYPT_ROUNDS);
+
+    // 2. Insert en Supabase
+    const { data, error } = await db
+      .from('usuarios')
+      .insert({ username, password: hashedPassword })
+      .select('id_usuario, username')
+      .single();
+
+    if (error) throw error;
+
+    // 3. Éxito
+    result.className = 'result-box success';
+    result.innerHTML = `
+      <strong>✅ ¡Cuenta creada exitosamente!</strong>
+      El usuario fue guardado en la base de datos con la contraseña hasheada.
+      <div class="user-info">
+        <span>ID de usuario</span><b>#${data.id_usuario}</b>
+        <span style="margin-top:6px">Username</span><b>${data.username}</b>
+        <span style="margin-top:6px">Password guardada como</span><b>${hashedPassword}</b>
+      </div>
+    `;
+    result.style.display = 'block';
+
+    // Reset form
+    document.getElementById('username').value  = '';
+    document.getElementById('password').value  = '';
+    document.getElementById('password2').value = '';
+    document.getElementById('username').classList.remove('success','error');
+    document.getElementById('password').classList.remove('success','error');
+    document.getElementById('password2').classList.remove('success','error');
+    document.getElementById('username-hint').textContent  = 'Mínimo 3 caracteres, sin espacios.';
+    document.getElementById('username-hint').className    = 'field-hint';
+    document.getElementById('password-hint').textContent  = '';
+    document.getElementById('confirm-hint').textContent   = '';
+    document.getElementById('strength-label').textContent = '—';
+    document.getElementById('strength-label').style.color = 'var(--muted)';
+    [1,2,3,4].forEach(i => { document.getElementById('seg'+i).className = 'strength-seg'; });
+    document.getElementById('hashPreview').classList.remove('visible');
+    usernameOk = passwordOk = confirmOk = false;
+
+  } catch(e) {
+    let msg = e.message || 'Error desconocido';
+    if (msg.includes('duplicate') || msg.includes('unique')) {
+      msg = 'Ese nombre de usuario ya existe. Elegí otro.';
+    }
+    result.className = 'result-box error';
+    result.innerHTML = `<strong>❌ Error al crear la cuenta</strong>${msg}`;
+    result.style.display = 'block';
+  }
+
+  btn.innerHTML = `<span id="btnText">✦ Crear cuenta</span>`;
+  updateBtn();
+}
+</script>
+
+</body>
+</html>
